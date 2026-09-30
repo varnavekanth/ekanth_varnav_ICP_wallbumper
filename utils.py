@@ -17,7 +17,7 @@ class Map:
 
 class Spritesheet:
     def __init__(self, filename):
-        self.spritesheet = pg.image.load(filename.convert())
+        self.spritesheet = pg.image.load(filename).convert()
 
     def get_image(self, x, y, width, height):
         image = pg.Surface((width, height))
