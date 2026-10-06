@@ -1,5 +1,8 @@
+# import the pygame module as pg so that we can use it within our code
 import pygame as pg
+# import everything from settings so we can use that in our code
 from settings import *
+# import the floor function from pythons built-in math module
 from math import floor
 
 class Map:

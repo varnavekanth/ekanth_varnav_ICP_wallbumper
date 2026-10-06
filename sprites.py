@@ -4,9 +4,9 @@ import pygame as pg
 from settings import *
 # from the submodule sprite in pygame, import the Sprite class
 from pygame.sprite import Sprite
-
+# import everything from utils so we can use that in our code here
 from utils import *
-
+# import path from os so we can use it in our code here
 from os import path
 
 vec = pg.math.Vector2
