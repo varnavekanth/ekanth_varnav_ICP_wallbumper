@@ -24,6 +24,14 @@ enemy position, velocity, aim in FPS
 
 Output: graphics (things are drawn), sound (jump, power up, walking), 
 hapitcs
+
+GOALS
+
+RULES
+
+FEEDBACK
+
+FREEDOM
 '''
 
 # create the class Game
@@ -40,34 +48,44 @@ class Game:
         self.clock = pg.time.Clock()
 
     def load_data(self, map):
+        # get the folder that the game is located in
         self.game_dir = path.dirname(__file__)
+        # create paths to the image and audio folders
         self.img_dir = path.join(self.game_dir, 'images')
         self.snd_dir = path.join(self.game_dir, 'audio')
+        # load the map from the map file
         self.map = Map(path.join(self.game_dir, map))
 
     def new(self):
-        # creates a new sprite in the sprite group at (0,0)
+        # set up a new game and load the level
         self.load_data('level1.txt')
+        # create the different sprite groups used in the game
         self.all_sprites = pg.sprite.Group()
         self.all_walls = pg.sprite.Group()
+        self.all_coins = pg.sprite.Group()
         self.all_mobs = pg.sprite.Group()
-
+        # go through each tile in the map and create the correct sprite
         for row, tiles in enumerate(self.map.data):
             for col, tile, in enumerate(tiles):
                 if tile == '1':
                     Wall(self, col, row)
                 if tile == 'M':
                     Mob(self, col, row)
+                if tile == 'C':
+                    Coin(self, col, row)
+        # go through the map again and create the player
         for row, tiles in enumerate(self.map.data):
             for col, tile, in enumerate(tiles):
                 if tile == 'P':
-                    Player(self, col, row)
+                    self.player = Player(self, col, row)
     
     def run(self):
         # uses events that happen to influence how it's drawn
         self.playing = True
         while self.playing:
+            # calculate the amount of time that passed since the last frame
             self.dt = self.clock.tick(FPS) / 1000
+            # check events, update the game, and draw the new frame
             self.events()
             self.update()
             self.draw()
@@ -81,14 +99,18 @@ class Game:
                 self.running = False
 
     def draw_text(self, text, size, color, x, y):
+        # find the arial font and create it at the given site
         font_name = pg.font.match_font('arial')
         font = pg.font.Font(font_name, size)
+        # turn the text into a surface that pygame can draw
         text_surface = font.render(text, True, color)
         text_rect = text_surface.get_rect()
+        # position the text and draw it onto the screen
         text_rect.midtop = (x,y)
         self.screen.blit(text_surface, text_rect)
 
     def update(self):
+        # update every sprite in the all sprites group
         self.all_sprites.update()
 
     def draw(self):
@@ -97,13 +119,15 @@ class Game:
         # the last lines in this method are drawn on top
         self.screen.fill(BGCOLOR)
         self.all_sprites.draw(self.screen)
-        self.draw_text("Frames per second: " + str(floor(1/self.dt) ), 24, WHITE, WIDTH/2, HEIGHT/4)
+        self.draw_text(f"Frames per second:{1/self.dt}", 24, WHITE, WIDTH/2, HEIGHT/4)
+        self.draw_text(f"Coins:{self.player.coins}", 24, WHITE, WIDTH/2, HEIGHT/7)
         pg.display.flip()
 
+# create the game when this file is run directly
 if __name__ == "__main__":
     g = Game()
 
 while g.running:
-    # the commands we give it
+    # keep starting and running the game while the game is running
     g.new()
     g.run()
