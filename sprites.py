@@ -8,6 +8,8 @@ from pygame.sprite import Sprite
 from utils import *
 # import path from os so we can use it in our code here
 from os import path
+
+from random import randint
 # create a shortcut for pygame's vector class we can use it in our code here
 vec = pg.math.Vector2
 
@@ -66,6 +68,7 @@ class Player(Sprite):
         self.hit_rect = PLAYER_HIT_RECT
         # set the starting velocity and position of the player
         self.vel = vec(0,0)
+        self.acc = vec(0,0)
         self.pos = vec(x*TILESIZE,y*TILESIZE)
         # set up the variables used for player animation
         self.last_update = 0
@@ -73,25 +76,34 @@ class Player(Sprite):
         self.dir = "none"
         # keep track of how many coins the player collects
         self.coins = 0
+        self.jumping = False
         print("player initialized...")
 
     def get_keys(self):
         # reset v to zero
         # listen for events
         # change velocity based on which key is pressed
-        self.vel = vec(0,0)
+        # self.vel = vec(0,0)
+        self.dir = "none"
         keys = pg.key.get_pressed()
         if keys[pg.K_LEFT] or keys[pg.K_a]:
-            self.vel.x = -PLAYER_SPEED
+            self.acc.x = -PLAYER_SPEED
+            # self.vel.x = -PLAYER_SPEED
         if keys[pg.K_RIGHT] or keys[pg.K_d]:
-            self.vel.x = PLAYER_SPEED
+            self.acc.x = PLAYER_SPEED
+            # self.vel.x = PLAYER_SPEED
         if keys[pg.K_UP] or keys[pg.K_w]:
-            self.vel.y = -PLAYER_SPEED
+            self.acc.y = -PLAYER_SPEED
+            # self.vel.y = -PLAYER_SPEED
         if keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.vel.y = PLAYER_SPEED
+            self.acc.y = PLAYER_SPEED
+            # self.vel.y = PLAYER_SPEED
         # check to see if player is moving diagonally
-        if self.vel.x != 0 and self.vel.y != 0:
-            self.vel *= 0.7071
+        # if self.vel.x != 0 and self.vel.y != 0:
+        #     self.vel *= 0.7071
+
+    def jump(self):
+        pass
 
     def animate(self):
         # get the current time so we can control the speed of the animation
@@ -111,20 +123,28 @@ class Player(Sprite):
         self.idle_frames = [self.spritesheet.get_image(0,0, TILESIZE, TILESIZE),
                             self.spritesheet.get_image(TILESIZE,0, TILESIZE, TILESIZE)
                             ]
+        self.run_frames = [self.spritesheet.get_image(0,0,TILESIZE, TILESIZE),
+                            self.spritesheet.get_image(TILESIZE,0,TILESIZE, TILESIZE)
+                            ]
         
     def update(self):
+        self.acc = vec(0,2)
         # check which keys are being pressed
         self.get_keys()
+        self.animate()
+        self.acc.x += self.vel.x * PLAYER_FRIC
+        self.acc.y += self.vel.y * PLAYER_FRIC
+        self.vel += self.acc
+        self.rect.center = self.pos
+        self.pos += self.vel + 0.5 * self.acc
         # check to see if the player has collided with a coin
         hits = pg.sprite.spritecollide(self, self.game.all_coins, True)
         if hits:
+            for i in range(25):
+                p = Particle(self.game, hits[0].pos.x, hits[0].pos.y)
             # add one coin to the player's coin count
             self.coins += 1
-        # animate the player
-        self.animate()
-        # update the player's position based on its velocity
-        self.rect.center = self.pos
-        self.pos += self.vel * self.game.dt
+            self.game.score += 1
         # check for collisions in the x direction
         self.hit_rect.centerx = self.pos.x
         collide_with_walls(self, self.game.all_walls, 'x')
@@ -143,7 +163,7 @@ class Wall(Sprite):
         self.game = game
         # create a tile sized surface for the wall
         self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.image.fill(GREEN)
+        self.image.fill(SKY_BLUE)
         self.rect = self.image.get_rect()
         # set the wall's position based on its tile on the map
         self.vx, self.vy = 0,0
@@ -152,6 +172,31 @@ class Wall(Sprite):
         self.rect.x = self.x
         self.rect.y = self.y
         print("wall initialized...")
+
+class Particle(Sprite):
+    def __init__(self, game, x, y):
+        self.groups = game.all_sprites, game.all_particles
+        Sprite.__init__(self, self.groups)
+        self.game = game
+        self.image = pg.Surface((TILESIZE/8, TILESIZE/8))
+        self.image.fill(WHITE)
+        self.rect = self.image.get_rect()
+        self.vel = vec(randint(-180,180),randint(-180,180))
+        self.pos = vec(x,y)
+        self.speed = 0.5
+        self.countdown = Timer()
+        self.countdown.event_time = floor(pg.time.get_ticks()/1000)
+        print("particle initialized...")
+
+    def update(self):
+        self.pos += self.vel * self.speed * self.game.dt
+        # use the countdown to eliminate particles after 2 seconds
+        if self.countdown.get_delta() > 2:
+            self.kill()
+            print("im dead")
+
+        self.rect.x = self.pos.x
+        self.rect.y = self.pos.y
 
 class Coin(Sprite):
     def __init__(self, game, x, y):
@@ -165,10 +210,9 @@ class Coin(Sprite):
         self.rect = self.image.get_rect()
         self.image.set_colorkey(BLACK)
         # set the coin's position based on its tile on the map
-        self.x = x*TILESIZE
-        self.y = y*TILESIZE
-        self.rect.x = self.x
-        self.rect.y = self.y
+        self.pos = vec(x*TILESIZE, y*TILESIZE)
+        self.rect.x = self.pos.x
+        self.rect.y = self.pos.y
         print("coin initialized")
     def update(self):
         pass

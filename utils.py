@@ -38,3 +38,10 @@ class Spritesheet:
         new_image = pg.transform.scale(image, (width, height))
         image = new_image
         return image
+
+class Timer:
+    def __init__(self):
+        self.event_time = floor((pg.time.get_ticks())/1000)
+    def get_delta(self):
+        # returns difference in time in seconds from time of instantiation to now
+        return floor((pg.time.get_ticks())/1000) - self.event_time
