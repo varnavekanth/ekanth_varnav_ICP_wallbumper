@@ -27,11 +27,10 @@ class Map:
 class Spritesheet:
     def __init__(self, filename):
         # load the sprite sheet image
-        self.spritesheet = pg.image.load(filename).convert()
-
+        self.spritesheet = pg.image.load(filename).convert_alpha()
     def get_image(self, x, y, width, height):
         # create a surface for the image we want to get
-        image = pg.Surface((width, height))
+        image = pg.Surface((width, height), pg.SRCALPHA)
         # copy the selected part of the sprite sheet onto the surface
         image.blit(self.spritesheet, (0,0), (x, y, width, height))
         # scale the image to the width and height we want
@@ -39,8 +38,10 @@ class Spritesheet:
         image = new_image
         return image
 
+# creates the Timer class so we can keep track of how much time has passed
 class Timer:
     def __init__(self):
+        # save the time when the timer is created
         self.event_time = floor((pg.time.get_ticks())/1000)
     def get_delta(self):
         # returns difference in time in seconds from time of instantiation to now

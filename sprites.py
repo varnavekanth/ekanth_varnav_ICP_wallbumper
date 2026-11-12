@@ -8,7 +8,7 @@ from pygame.sprite import Sprite
 from utils import *
 # import path from os so we can use it in our code here
 from os import path
-
+# import randint from random so we can use it in our code here
 from random import randint
 # create a shortcut for pygame's vector class we can use it in our code here
 vec = pg.math.Vector2
@@ -62,7 +62,6 @@ class Player(Sprite):
         # create the image for the player sprite
         self.image = pg.Surface((TILESIZE, TILESIZE))
         self.image = self.spritesheet.get_image(0,0, TILESIZE, TILESIZE)
-        self.image.set_colorkey(BLACK)
         # create the regular rect and hit rect for the player
         self.rect = self.image.get_rect()
         self.hit_rect = PLAYER_HIT_RECT
@@ -80,30 +79,49 @@ class Player(Sprite):
         print("player initialized...")
 
     def get_keys(self):
-        # reset v to zero
-        # listen for events
-        # change velocity based on which key is pressed
-        # self.vel = vec(0,0)
+        # reset the player's direction before check which keys are pressed
         self.dir = "none"
+        # check to see which keys are being pressed
         keys = pg.key.get_pressed()
+        # move the player left/right by chaning acceleration
         if keys[pg.K_LEFT] or keys[pg.K_a]:
-            self.acc.x = -PLAYER_SPEED
-            # self.vel.x = -PLAYER_SPEED
+            self.dir = "left"
+            self.acc.x = -PLAYER_ACC
         if keys[pg.K_RIGHT] or keys[pg.K_d]:
-            self.acc.x = PLAYER_SPEED
-            # self.vel.x = PLAYER_SPEED
+            self.dir = "right"
+            self.acc.x = PLAYER_ACC
+        # move the player up/down by changing acceleration
         if keys[pg.K_UP] or keys[pg.K_w]:
-            self.acc.y = -PLAYER_SPEED
-            # self.vel.y = -PLAYER_SPEED
+            self.acc.y = -PLAYER_ACC
         if keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.acc.y = PLAYER_SPEED
-            # self.vel.y = PLAYER_SPEED
-        # check to see if player is moving diagonally
-        # if self.vel.x != 0 and self.vel.y != 0:
-        #     self.vel *= 0.7071
+            self.acc.y = PLAYER_ACC
+        # check to see if player is trying to jump
+        if keys[pg.K_SPACE]:
+            self.jump()
+        # reduce player's velocity when moving diagonally
+        if self.vel.x != 0 and self.vel.y != 0:
+            self.vel *= 0.7071
 
     def jump(self):
-        pass
+        # move the player's rect down slightly to check for a wall below
+        self.rect.y += 2
+        hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
+        # move the rect back to its og position
+        self.rect.y -= 2
+        # jump if the player is standing on a wall + not already jumping
+        if hits and not self.jumping:
+            self.game.jump_sound.play()
+            self.jumping = True
+            self.vel.y = -PLAYER_JUMP
+
+    def is_jumping(self):
+        # check to see if player is falling
+        if self.vel.y > 0:
+            # check to see if the player has collided with a wall
+            hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
+            # reset the jumping variable if a collision is detected
+            if hits:
+                self.jumping = False
 
     def animate(self):
         # get the current time so we can control the speed of the animation
@@ -128,22 +146,35 @@ class Player(Sprite):
                             ]
         
     def update(self):
-        self.acc = vec(0,2)
+        # animate the player and check if the player has landed
+        self.animate()
+        self.is_jumping()
+        # reset acceleration and apply gravity
+        self.acc = vec(0,PLAYER_GRAV)
         # check which keys are being pressed
         self.get_keys()
-        self.animate()
+        # apply friction to slow the player's movement
         self.acc.x += self.vel.x * PLAYER_FRIC
         self.acc.y += self.vel.y * PLAYER_FRIC
+        # update the player's velocity based on acceleration
         self.vel += self.acc
+        # stop very small velocities so the player doesn't keep drifting
+        if abs(self.vel.x) < 0.1:
+            self.vel.x = 0
+        if abs(self.vel.y) < 0.1:
+            self.vel.y = 0
+        # update the player's position based on velocity and acceleration
         self.rect.center = self.pos
         self.pos += self.vel + 0.5 * self.acc
         # check to see if the player has collided with a coin
         hits = pg.sprite.spritecollide(self, self.game.all_coins, True)
         if hits:
+            # create particles at the coin's position
             for i in range(25):
                 p = Particle(self.game, hits[0].pos.x, hits[0].pos.y)
             # add one coin to the player's coin count
             self.coins += 1
+            self.game.pickup_snd.play()
             self.game.score += 1
         # check for collisions in the x direction
         self.hit_rect.centerx = self.pos.x
@@ -175,26 +206,31 @@ class Wall(Sprite):
 
 class Particle(Sprite):
     def __init__(self, game, x, y):
+        # add the particle to the all sprites and all particles groups
         self.groups = game.all_sprites, game.all_particles
         Sprite.__init__(self, self.groups)
         self.game = game
-        self.image = pg.Surface((TILESIZE/8, TILESIZE/8))
+        # create a small white square for the particle
+        self.image = pg.Surface((TILESIZE//8, TILESIZE//8))
         self.image.fill(WHITE)
         self.rect = self.image.get_rect()
+        # set a random velocity + starting pos for the particle
         self.vel = vec(randint(-180,180),randint(-180,180))
         self.pos = vec(x,y)
         self.speed = 0.5
+        # create a timer to keep track of how long the particle exists
         self.countdown = Timer()
         self.countdown.event_time = floor(pg.time.get_ticks()/1000)
         print("particle initialized...")
 
     def update(self):
+        # update the particle's pos based on its velocity
         self.pos += self.vel * self.speed * self.game.dt
         # use the countdown to eliminate particles after 2 seconds
         if self.countdown.get_delta() > 2:
             self.kill()
             print("im dead")
-
+        # make the particles rect match its new position
         self.rect.x = self.pos.x
         self.rect.y = self.pos.y
 
@@ -204,18 +240,43 @@ class Coin(Sprite):
         self.groups = game.all_sprites, game.all_coins
         Sprite.__init__(self, self.groups)
         self.game = game
-        # create the coin as a yellow circle
-        self.image = pg.Surface((TILESIZE, TILESIZE))
-        pg.draw.circle(self.image, (YELLOW), (16, 16), 16)
+        # load the sprite sheet and the coin's animation frames
+        self.spritesheet = Spritesheet(path.join(self.game.img_dir, "sprite_sheet.png"))
+        self.load_images()
+        # use the first coin as the starting image
+        self.image = self.idle_frames[0]
         self.rect = self.image.get_rect()
-        self.image.set_colorkey(BLACK)
         # set the coin's position based on its tile on the map
         self.pos = vec(x*TILESIZE, y*TILESIZE)
         self.rect.x = self.pos.x
         self.rect.y = self.pos.y
+        # set up the variables used for coin animation
+        self.last_update = 0
+        self.current_frame = 0
         print("coin initialized")
+
+    def load_images(self):
+        # load the two frames used for the coin's animation
+        self.idle_frames = [
+            self.spritesheet.get_image(128, 0, TILESIZE, TILESIZE),
+            self.spritesheet.get_image(160, 0, TILESIZE, TILESIZE)
+        ]
+
+    def animate(self):
+        # get the current time so we can control the speed of the animation
+        now = pg.time.get_ticks()
+        # change to the next coin frame every 350 milliseconds
+        if now - self.last_update > 350:
+            self.last_update = now
+            self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
+            self.image = self.idle_frames[self.current_frame]
+            self.rect = self.image.get_rect()
+
     def update(self):
-        pass
+        # animate the coin and keep it in the same position
+        self.animate()
+        self.rect.x = self.pos.x
+        self.rect.y = self.pos.y
 
 class Mob(Sprite):
     def __init__(self, game, x, y):
@@ -228,7 +289,7 @@ class Mob(Sprite):
         self.load_images()
         # create the image and rect for the mob
         self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.image = self.spritesheet.get_image(0,0,TILESIZE, TILESIZE)
+        self.image = self.idle_frames[0]
         self.rect = self.image.get_rect()
         # set the mob's speed, velocity, and starting position
         self.speed = 100
@@ -267,12 +328,27 @@ class Mob(Sprite):
                     self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
                     bottom = self.rect.bottom
                     self.image = self.idle_frames[self.current_frame]
-                    self.image.set_colorkey(BLACK)
                     self.rect = self.image.get_rect()
                     self.rect.bottom = bottom
             # check to see if the mob is moving to the right
             elif self.dir == "right":
-                pass
+                if now - self.last_update > 350:
+                    self.last_update = now
+                    self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
+                    bottom = self.rect.bottom
+                    self.image = self.idle_frames[self.current_frame]
+                    self.rect = self.image.get_rect()
+                    self.rect.bottom = bottom
+            # check to see if the mob is moving to the left
+            elif self.dir == "left":
+                if now - self.last_update > 350:
+                    self.last_update = now
+                    self.current_frame = (self.current_frame + 1) % len(self.idle_frames)
+                    bottom = self.rect.bottom
+                    self.image = self.idle_frames[self.current_frame]
+                    self.rect = self.image.get_rect()
+                    self.rect.bottom = bottom
+
     
     def chase(self, obj):
         # move the mob left or right toward the object's x position

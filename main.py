@@ -56,18 +56,24 @@ class Game:
         # create paths to the image and audio folders
         self.img_dir = path.join(self.game_dir, 'images')
         self.snd_dir = path.join(self.game_dir, 'audio')
+        # load the sounds for collecting coins and jumping
+        self.pickup_snd = pg.mixer.Sound(path.join(self.snd_dir, "coin.wav"))
+        self.jump_sound = pg.mixer.Sound(path.join(self.snd_dir, "jump.wav"))
         # load the map from the map file
         self.map = Map(path.join(self.game_dir, map))
+        # create the high score file if it does not already exist
         try:
             with open(self.game_save_file, 'x', encoding="utf-8") as file:
-                file.write("hello world!")
+                file.write("0")
             print("file created successfully!")
         except FileExistsError:
             print("file already exists")
+        # read the saved high score from the file
         with open(self.game_save_file, 'r') as file:
             try:
                 self.high_score = int(file.read())
             except:
+                # print a mesasge if the high score cannot be read
                 print("high score not read...")
 
     def new(self):
@@ -109,9 +115,11 @@ class Game:
         # looks through all events, if the event is quit then it stops running
         for event in pg.event.get():
             if event.type == pg.QUIT:
+                # save the player's score if it is higher than the previous high score
                 if self.score > self.high_score:
                     with open(path.join(self.game_dir, self.game_save_file), 'w') as f:
                         f.write(str(self.score))
+                # stop playing and close the game
                 if self.playing:
                     self.playing = False
                 self.running = False
