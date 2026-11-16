@@ -4,7 +4,7 @@ import pygame as pg
 # settings of the screen
 WIDTH = 800
 HEIGHT = 1024
-TITLE = "wall bumper"
+TITLE = "platformer"
 TILESIZE = 32
 FPS = 30
 

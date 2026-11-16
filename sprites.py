@@ -106,21 +106,30 @@ class Player(Sprite):
         if keys[pg.K_SPACE]:
             self.jump()
         # reduce player's velocity when moving diagonally
-        if self.vel.x != 0 and self.vel.y != 0:
-            self.vel *= 0.7071
+        # if self.vel.x != 0 and self.vel.y != 0:
+        #     self.vel *= 0.7071
+        # reduce diagonal movement acceleration without affecting gravity/jumping
+        if ((keys[pg.K_LEFT] or keys[pg.K_a] or keys[pg.K_RIGHT] or keys[pg.K_d])
+            and (keys[pg.K_UP] or keys[pg.K_w] or keys[pg.K_DOWN] or keys[pg.K_s])):
+            self.acc.x *= 0.7071
+            self.acc.y = PLAYER_GRAV + (self.acc.y - PLAYER_GRAV) * 0.7071 
 
     def jump(self):
-        # move the player's rect down slightly to check for a wall below
-        self.rect.y += 2
-        hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
-        # move the rect back to its og position
-        self.rect.y -= 2
-        # jump if the player is standing on a wall + not already jumping
-        if hits and not self.jumping:
-            self.game.jump_sound.play()
-            self.jumping = True
-            self.vel.y = -PLAYER_JUMP
+        # check if player is standing on top of a wall
+        for wall in self.game.all_walls:
+            # check if player is horizontally above the wall
+            if (self.hit_rect.right > wall.rect.left and
+                self.hit_rect.left < wall.rect.right):
+                # check if player's feet are touching wall's top
+                distance = wall.rect.top - self.hit_rect.bottom
+                if -1 <= distance <= 3 and not self.jumping:
+                    # jump and play the sound
+                    self.game.jump_sound.play()
+                    self.jumping = True
+                    self.vel.y = -PLAYER_JUMP
+                    break
 
+    # not using is_jumping() bc it could mistakenly reset jump state from side collisions
     def is_jumping(self):
         # check to see if player is falling
         if self.vel.y > 0:
@@ -155,7 +164,6 @@ class Player(Sprite):
     def update(self):
         # animate the player and check if the player has landed
         self.animate()
-        self.is_jumping()
         # reset acceleration and apply gravity
         self.acc = vec(0,PLAYER_GRAV)
         # check which keys are being pressed
