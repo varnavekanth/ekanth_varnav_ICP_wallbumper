@@ -18,6 +18,8 @@ def collide_hit_rect(one, two):
     return one.hit_rect.colliderect(two.rect)
 
 def collide_with_walls(sprite, group, dir):
+    # keep track of whether the sprite has landed on a wall
+    landed = False
     # check for x collision
     if dir == 'x':
         # checking to see if we've collided with hitrects
@@ -40,6 +42,9 @@ def collide_with_walls(sprite, group, dir):
         if hits:
             # check to see if we're above the wall
             if hits[0].rect.centery > sprite.hit_rect.centery:
+                # check to see if the sprite is landing
+                if sprite.vel.y > 0:
+                    landed = True
                 # reposition the player sprite to the top of the wall
                 sprite.pos.y = hits[0].rect.top - sprite.hit_rect.height / 2
             # check to see if we're below the wall
@@ -48,6 +53,8 @@ def collide_with_walls(sprite, group, dir):
                 sprite.pos.y = hits[0].rect.bottom + sprite.hit_rect.height / 2
             sprite.vel.y = 0
             sprite.hit_rect.centery = sprite.pos.y
+    # return whether the sprite has landed on a wall
+    return landed
 
 class Player(Sprite):
     def __init__(self, game, x, y):
@@ -64,7 +71,7 @@ class Player(Sprite):
         self.image = self.spritesheet.get_image(0,0, TILESIZE, TILESIZE)
         # create the regular rect and hit rect for the player
         self.rect = self.image.get_rect()
-        self.hit_rect = PLAYER_HIT_RECT
+        self.hit_rect = PLAYER_HIT_RECT.copy()
         # set the starting velocity and position of the player
         self.vel = vec(0,0)
         self.acc = vec(0,0)
@@ -170,18 +177,20 @@ class Player(Sprite):
         hits = pg.sprite.spritecollide(self, self.game.all_coins, True)
         if hits:
             # create particles at the coin's position
-            for i in range(25):
-                p = Particle(self.game, hits[0].pos.x, hits[0].pos.y)
+            for i in range(10):
+                p = Particle(self.game, hits[0].rect.centerx, hits[0].rect.centery)
             # add one coin to the player's coin count
             self.coins += 1
             self.game.pickup_snd.play()
-            self.game.score += 1
+            self.game.score += 100
         # check for collisions in the x direction
         self.hit_rect.centerx = self.pos.x
         collide_with_walls(self, self.game.all_walls, 'x')
         # check for collisions in the y direction
         self.hit_rect.centery = self.pos.y
-        collide_with_walls(self, self.game.all_walls, 'y')
+        # reset jumping if the player has landed on a wall
+        if collide_with_walls(self, self.game.all_walls, 'y'):
+            self.jumping = False
         # make the sprite's rect match its hit rect
         self.rect.center = self.hit_rect.center
 
@@ -212,22 +221,22 @@ class Particle(Sprite):
         self.game = game
         # create a small white square for the particle
         self.image = pg.Surface((TILESIZE//8, TILESIZE//8))
-        self.image.fill(WHITE)
+        self.image.fill(GOLD)
         self.rect = self.image.get_rect()
         # set a random velocity + starting pos for the particle
         self.vel = vec(randint(-180,180),randint(-180,180))
         self.pos = vec(x,y)
-        self.speed = 0.5
+        self.speed = 0.75
         # create a timer to keep track of how long the particle exists
         self.countdown = Timer()
-        self.countdown.event_time = floor(pg.time.get_ticks()/1000)
+        self.countdown.event_time = pg.time.get_ticks()
         print("particle initialized...")
 
     def update(self):
         # update the particle's pos based on its velocity
         self.pos += self.vel * self.speed * self.game.dt
         # use the countdown to eliminate particles after 2 seconds
-        if self.countdown.get_delta() > 2:
+        if pg.time.get_ticks() - self.countdown.event_time > 250:
             self.kill()
             print("im dead")
         # make the particles rect match its new position
@@ -304,8 +313,8 @@ class Mob(Sprite):
         self.dir = "none"
         self.last_update = 0
         self.current_frame = 0
-        # create a seoarate hit rect for collisions
-        self.hit_rect = MOB_HIT_RECT
+        # create a separate hit rect for collisions
+        self.hit_rect = MOB_HIT_RECT.copy()
         print("mob initialized...")
 
     def load_images(self):
