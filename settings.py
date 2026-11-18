@@ -9,10 +9,11 @@ TILESIZE = 32
 FPS = 30
 
 # colors
-BGCOLOR = (0, 128, 128)
+BGCOLOR = (70, 70, 70)
 WHITE   = (255, 255, 255)
 BLACK   = (0, 0, 0)
 GRAY    = (128, 128, 128)
+DARK_GRAY = (169, 169, 169)
 SILVER  = (192, 192, 192)
 RED     = (255, 0, 0)
 MAROON  = (128, 0, 0)

@@ -76,13 +76,18 @@ class Player(Sprite):
         self.vel = vec(0,0)
         self.acc = vec(0,0)
         self.pos = vec(x*TILESIZE,y*TILESIZE)
+        # make the player's hit rect match its starting position
+        self.hit_rect.center = self.pos
         # set up the variables used for player animation
         self.last_update = 0
         self.current_frame = 0
         self.dir = "none"
         # keep track of how many coins the player collects
         self.coins = 0
+        # set the jumping status detector to false
         self.jumping = False
+        # keep track of whether the jump key is being held
+        self.jump_key_held = False
         print("player initialized...")
 
     def get_keys(self):
@@ -97,22 +102,43 @@ class Player(Sprite):
         if keys[pg.K_RIGHT] or keys[pg.K_d]:
             self.dir = "right"
             self.acc.x = PLAYER_ACC
-        # move the player up/down by changing acceleration
-        if keys[pg.K_UP] or keys[pg.K_w]:
-            self.acc.y = -PLAYER_ACC
-        if keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.acc.y = PLAYER_ACC
-        # check to see if player is trying to jump
-        if keys[pg.K_SPACE]:
+        # check to see if a jump key is being pressed
+        jump_pressed = keys[pg.K_SPACE] or keys[pg.K_UP] or keys[pg.K_w]
+        # only jump when the key is first pressed to prevent continuous jumping from one press
+        if jump_pressed and not self.jump_key_held:
             self.jump()
-        # reduce player's velocity when moving diagonally
+        # keep track of whether the jump key is still being held
+        self.jump_key_held = jump_pressed
+        # reduce horizontal acceleration while jumping
+        if self.jumping:
+            self.acc.x *= 0.7071
+
+        # # move the player up/down by changing acceleration
+        # if keys[pg.K_UP] or keys[pg.K_w]:
+        #     self.acc.y = -PLAYER_ACC
+        # if keys[pg.K_DOWN] or keys[pg.K_s]:
+        #     self.acc.y = PLAYER_ACC
+        # # check to see if player is trying to jump
+        # if keys[pg.K_SPACE]:
+        #     self.jump()
+        # # reduce player's velocity when moving diagonally
         # if self.vel.x != 0 and self.vel.y != 0:
         #     self.vel *= 0.7071
-        # reduce diagonal movement acceleration without affecting gravity/jumping
-        if ((keys[pg.K_LEFT] or keys[pg.K_a] or keys[pg.K_RIGHT] or keys[pg.K_d])
-            and (keys[pg.K_UP] or keys[pg.K_w] or keys[pg.K_DOWN] or keys[pg.K_s])):
-            self.acc.x *= 0.7071
-            self.acc.y = PLAYER_GRAV + (self.acc.y - PLAYER_GRAV) * 0.7071 
+        # # reduce diagonal movement acceleration without affecting gravity/jumping
+        # if ((keys[pg.K_LEFT] or keys[pg.K_a] or keys[pg.K_RIGHT] or keys[pg.K_d])
+        #     and (keys[pg.K_UP] or keys[pg.K_w] or keys[pg.K_DOWN] or keys[pg.K_s])):
+        #     self.acc.x *= 0.7071
+        #     self.acc.y = PLAYER_GRAV + (self.acc.y - PLAYER_GRAV) * 0.7071 
+
+    def collide_with_stuff(self, group, kill):
+        # check to see if the player has collided with a wall
+        hits = pg.sprite.spritecollide(self, group, kill, collide_hit_rect)
+        for wall in hits:
+            # change the wall's image if it has not already been hit
+            if not wall.hit:
+                wall.image = wall.hit_image
+                wall.hit = True
+                self.game.collide_snd.play()
 
     def jump(self):
         # check if player is standing on top of a wall
@@ -126,6 +152,8 @@ class Player(Sprite):
                     # jump and play the sound
                     self.game.jump_sound.play()
                     self.jumping = True
+                    #reduce sideways velocity when starting a jump
+                    self.vel.x *= 0.7071
                     self.vel.y = -PLAYER_JUMP
                     break
 
@@ -193,9 +221,13 @@ class Player(Sprite):
             self.game.score += 100
         # check for collisions in the x direction
         self.hit_rect.centerx = self.pos.x
+        # change the appearance of walls the player touches
+        self.collide_with_stuff(self.game.all_walls, False)
         collide_with_walls(self, self.game.all_walls, 'x')
         # check for collisions in the y direction
         self.hit_rect.centery = self.pos.y
+        # change the appearance of walls the player lands on or hits from below
+        self.collide_with_stuff(self.game.all_walls, False)
         # reset jumping if the player has landed on a wall
         if collide_with_walls(self, self.game.all_walls, 'y'):
             self.jumping = False
@@ -209,9 +241,11 @@ class Wall(Sprite):
         self.groups = game.all_sprites, game.all_walls
         Sprite.__init__(self, self.groups)
         self.game = game
-        # create a tile sized surface for the wall
-        self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.image.fill(SKY_BLUE)
+        # load the normal and damaged wall images from the sprite sheet
+        self.spritesheet = Spritesheet(path.join(self.game.img_dir, "sprite_sheet.png"))
+        self.image = self.spritesheet.get_image(192, 0, TILESIZE, TILESIZE)
+        self.hit_image = self.spritesheet.get_image(224, 0, TILESIZE, TILESIZE)
+        self.hit = False
         self.rect = self.image.get_rect()
         # set the wall's position based on its tile on the map
         self.vx, self.vy = 0,0

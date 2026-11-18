@@ -59,6 +59,7 @@ class Game:
         # load the sounds for collecting coins and jumping
         self.pickup_snd = pg.mixer.Sound(path.join(self.snd_dir, "coin.wav"))
         self.jump_sound = pg.mixer.Sound(path.join(self.snd_dir, "jump.wav"))
+        self.collide_snd = pg.mixer.Sound(path.join(self.snd_dir, "impact.wav"))
         # load the map from the map file
         self.map = Map(path.join(self.game_dir, map))
         # create the high score file if it does not already exist
@@ -141,7 +142,7 @@ class Game:
 
     def draw(self):
         # draws the background and the sprites
-        # this orde matters: the first things are on the bottom because they are the 'first' to be drawn
+        # this order matters: the first things are on the bottom because they are the 'first' to be drawn
         # the last lines in this method are drawn on top
         self.screen.fill(BGCOLOR)
         self.all_sprites.draw(self.screen)
