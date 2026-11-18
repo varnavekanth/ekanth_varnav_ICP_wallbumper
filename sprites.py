@@ -25,6 +25,11 @@ def collide_with_walls(sprite, group, dir):
         # checking to see if we've collided with hitrects
         hits = pg.sprite.spritecollide(sprite, group, False, collide_hit_rect)
         if hits:
+            # check if the player is running into the side of a wall
+            if isinstance(sprite, Player):
+                if ((sprite.vel.x >0 and hits[0].rect.centerx > sprite.hit_rect.centerx)
+                    or (sprite.vel.x < 0 and hits[0].rect.centerx < sprite.hit_rect.centerx)):
+                    sprite.collide_with_stuff(hits[0])
             # check to see if we're to the left of the wall
             if hits[0].rect.centerx > sprite.hit_rect.centerx:
                 # reposition the player sprite to the left side of the wall
@@ -45,10 +50,16 @@ def collide_with_walls(sprite, group, dir):
                 # check to see if the sprite is landing
                 if sprite.vel.y > 0:
                     landed = True
+                    # crack the wall only if the player landed after jumping
+                    if isinstance(sprite, Player) and sprite.jumping:
+                        sprite.collide_with_stuff(hits[0])
                 # reposition the player sprite to the top of the wall
                 sprite.pos.y = hits[0].rect.top - sprite.hit_rect.height / 2
             # check to see if we're below the wall
             if hits[0].rect.centery < sprite.hit_rect.centery:
+                # crack the wall if the player jumps into it from below
+                if isinstance(sprite, Player) and sprite.vel.y < 0:
+                    sprite.collide_with_stuff(hits[0])
                 # reposition the player sprite to the bottom of the wall
                 sprite.pos.y = hits[0].rect.bottom + sprite.hit_rect.height / 2
             sprite.vel.y = 0
@@ -111,34 +122,14 @@ class Player(Sprite):
         self.jump_key_held = jump_pressed
         # reduce horizontal acceleration while jumping
         if self.jumping:
-            self.acc.x *= 0.7071
+            self.acc.x *= 0.7071 
 
-        # # move the player up/down by changing acceleration
-        # if keys[pg.K_UP] or keys[pg.K_w]:
-        #     self.acc.y = -PLAYER_ACC
-        # if keys[pg.K_DOWN] or keys[pg.K_s]:
-        #     self.acc.y = PLAYER_ACC
-        # # check to see if player is trying to jump
-        # if keys[pg.K_SPACE]:
-        #     self.jump()
-        # # reduce player's velocity when moving diagonally
-        # if self.vel.x != 0 and self.vel.y != 0:
-        #     self.vel *= 0.7071
-        # # reduce diagonal movement acceleration without affecting gravity/jumping
-        # if ((keys[pg.K_LEFT] or keys[pg.K_a] or keys[pg.K_RIGHT] or keys[pg.K_d])
-        #     and (keys[pg.K_UP] or keys[pg.K_w] or keys[pg.K_DOWN] or keys[pg.K_s])):
-        #     self.acc.x *= 0.7071
-        #     self.acc.y = PLAYER_GRAV + (self.acc.y - PLAYER_GRAV) * 0.7071 
-
-    def collide_with_stuff(self, group, kill):
-        # check to see if the player has collided with a wall
-        hits = pg.sprite.spritecollide(self, group, kill, collide_hit_rect)
-        for wall in hits:
-            # change the wall's image if it has not already been hit
-            if not wall.hit:
-                wall.image = wall.hit_image
-                wall.hit = True
-                self.game.collide_snd.play()
+    def collide_with_stuff(self, wall):
+        # change the wall's image if it has not already been hit
+        if not wall.hit:
+            wall.image = wall.hit_image
+            wall.hit = True
+            self.game.collide_snd.play()
 
     def jump(self):
         # check if player is standing on top of a wall
@@ -190,7 +181,7 @@ class Player(Sprite):
                             ]
         
     def update(self):
-        # animate the player and check if the player has landed
+        # animate the player
         self.animate()
         # reset acceleration and apply gravity
         self.acc = vec(0,PLAYER_GRAV)
@@ -221,13 +212,9 @@ class Player(Sprite):
             self.game.score += 100
         # check for collisions in the x direction
         self.hit_rect.centerx = self.pos.x
-        # change the appearance of walls the player touches
-        self.collide_with_stuff(self.game.all_walls, False)
         collide_with_walls(self, self.game.all_walls, 'x')
         # check for collisions in the y direction
         self.hit_rect.centery = self.pos.y
-        # change the appearance of walls the player lands on or hits from below
-        self.collide_with_stuff(self.game.all_walls, False)
         # reset jumping if the player has landed on a wall
         if collide_with_walls(self, self.game.all_walls, 'y'):
             self.jumping = False
