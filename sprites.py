@@ -13,7 +13,7 @@ from random import randint
 # create a shortcut for pygame's vector class we can use it in our code here
 vec = pg.math.Vector2
 
-#check to see if the hit rect of one sprite collides with another sprite
+# check whether the first sprite's hit rect collides with secon'd sprites hit rect
 def collide_hit_rect(one, two):
     return one.hit_rect.colliderect(two.rect)
 
@@ -120,7 +120,7 @@ class Player(Sprite):
             self.jump()
         # keep track of whether the jump key is still being held
         self.jump_key_held = jump_pressed
-        # reduce horizontal acceleration while jumping
+        # reduce horizontal acceleration in air to make jumps easier to control
         if self.jumping:
             self.acc.x *= 0.7071 
 
@@ -187,11 +187,18 @@ class Player(Sprite):
         self.acc = vec(0,PLAYER_GRAV)
         # check which keys are being pressed
         self.get_keys()
-        # apply friction to slow the player's movement
-        self.acc.x += self.vel.x * PLAYER_FRIC
-        self.acc.y += self.vel.y * PLAYER_FRIC
+        # apply stronger ground friction for quick stops and
+        # weaker air friction to preserve momentum during jumps
+        if self.jumping:
+            self.acc.x += self.vel.x * -0.04
+        else:
+            self.acc.x += self.vel.x * PLAYER_FRIC
+        # apply separate vertical friction so changing ground friction doesn't affect jump height
+        self.acc.y += self.vel.y * -0.12
         # update the player's velocity based on acceleration
         self.vel += self.acc
+        # limit horizontal speed without affecting vertical movement
+        self.vel.x = max(-PLAYER_MAX_SPEED, min(self.vel.x, PLAYER_MAX_SPEED))
         # stop very small velocities so the player doesn't keep drifting
         if abs(self.vel.x) < 0.1:
             self.vel.x = 0
@@ -199,7 +206,7 @@ class Player(Sprite):
             self.vel.y = 0
         # update the player's position based on velocity and acceleration
         self.rect.center = self.pos
-        self.pos += self.vel + 0.5 * self.acc
+        self.pos += self.vel
         # check to see if the player has collided with a coin
         hits = pg.sprite.spritecollide(self, self.game.all_coins, True)
         if hits:
@@ -387,7 +394,7 @@ class Mob(Sprite):
                     self.rect = self.image.get_rect()
                     self.rect.bottom = bottom
 
-    
+    # determine the mob's velocity based on the player's position
     def chase(self, obj):
         # move the mob left or right toward the object's x position
         if self.pos.x < obj.pos.x:

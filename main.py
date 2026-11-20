@@ -25,13 +25,16 @@ enemy position, velocity, aim in FPS
 Output: graphics (things are drawn), sound (jump, power up, walking), 
 hapitcs
 
-GOALS
+GOALS: reach end of level in fastest time possible; collect coins along the way; avoid spikes
 
-RULES
+RULES: collecting coins adds a score multiplier; initial score based on time to complete levell;
+        hitting a spike causes player movement to slow down
 
-FEEDBACK
+FEEDBACK: sound effects when jumping, collecting coins, landing on/smashing into walls;
+        coins explode into particles when collected; player animates when moving left/right/jump;
+        player flashes red when hitting spike
 
-FREEDOM
+FREEDOM: can move left/right/jump; collect coins;
 '''
 
 # create the class Game
